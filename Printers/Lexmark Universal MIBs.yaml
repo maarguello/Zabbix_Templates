@@ -1,0 +1,144 @@
+zabbix_export:
+  version: '6.4'
+  template_groups:
+    - uuid: 60f1dce8720d41eab748470cd7d4746e
+      name: Printers
+  templates:
+    - uuid: 113cc5d5b2174f0791b7347e7c9be009
+      template: 'Lexmark Universal MIBs'
+      name: 'Lexmark Universal MIBs'
+      description: |
+        Universal MIBs include a set of MIB objects specific to Lexmark printers and other Lexmark networked devices
+        
+        
+        Autor: Maynord Arguello
+      templates:
+        - name: 'snmp checker'
+      groups:
+        - name: Printers
+      items:
+        - uuid: afcfdfd2065a4ba68e0d6e8998ce6c20
+          name: Status
+          type: SNMP_AGENT
+          snmp_oid: iso.3.6.1.2.1.25.3.5.1.1.1
+          key: PrinterStatus
+          trends: '0'
+          valuemap:
+            name: 'Printer Status'
+          triggers:
+            - uuid: bcb6c585ec3c463d8240e70e2d4c0fb9
+              expression: |
+                last(/Lexmark Universal MIBs/PrinterStatus)=8 or last(/Lexmark Universal MIBs/PrinterStatus)=5 or last(/Lexmark Universal MIBs/PrinterStatus)=6 or last(/Lexmark Universal MIBs/PrinterStatus)=7 or
+                last(/Lexmark Universal MIBs/PrinterStatus)=1
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: |
+                last(/Lexmark Universal MIBs/PrinterStatus)=4 or
+                last(/Lexmark Universal MIBs/PrinterStatus)=3
+              name: 'Error Printer'
+              priority: WARNING
+              manual_close: 'YES'
+        - uuid: b38ebe7b6563408ca6cc1d87b3e974ec
+          name: 'Page Counter'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.43.10.2.1.4.1.1
+          key: prtMarkerLifeCount
+          delay: 10m
+          history: 180d
+      discovery_rules:
+        - uuid: 1f38dbfba26f491cb27b6ddaa63f95b5
+          name: 'Discovery printer'
+          type: SNMP_AGENT
+          snmp_oid: 'discovery[{#IFDESCR},.1.3.6.1.2.1.43.11.1.1.6.1]'
+          key: item.discovery
+          delay: 10m
+          item_prototypes:
+            - uuid: d19af7d002b34cf5b1a5915e2e478a49
+              name: '% [{#IFDESCR}]'
+              type: CALCULATED
+              key: 'percentSupplies[{#IFDESCR}]'
+              delay: 10m
+              trends: '0'
+              value_type: FLOAT
+              units: '%'
+              params: '(last(//supplieslevel[{#IFDESCR}])*100)/last(//suppliescapacity[{#IFDESCR}])'
+              tags:
+                - tag: type
+                  value: supply
+              trigger_prototypes:
+                - uuid: e717f9074bde4599921a71b4c94e5c07
+                  expression: 'last(/Lexmark Universal MIBs/percentSupplies[{#IFDESCR}])<=5'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'last(/Lexmark Universal MIBs/percentSupplies[{#IFDESCR}])>5'
+                  name: 'Supply: [{#IFDESCR}] : {ITEM.LASTVALUE1}'
+                  priority: INFO
+                  manual_close: 'YES'
+            - uuid: 7e1f0fd751404dda9b7af195b124a0a1
+              name: 'Supplies Capacity [{#IFDESCR}]'
+              type: SNMP_AGENT
+              snmp_oid: '.1.3.6.1.2.1.43.11.1.1.8.1.{#SNMPINDEX}'
+              key: 'suppliescapacity[{#IFDESCR}]'
+              delay: 10m
+              trends: 180d
+            - uuid: 000014c9259142a1b38f637e8747994b
+              name: 'Supplies Level [{#IFDESCR}]'
+              type: SNMP_AGENT
+              snmp_oid: '.1.3.6.1.2.1.43.11.1.1.9.1.{#SNMPINDEX}'
+              key: 'supplieslevel[{#IFDESCR}]'
+              delay: 10m
+              trends: 180d
+          trigger_prototypes:
+            - uuid: ded235fb1ecc4235879f739375335b10
+              expression: '100*last(/Lexmark Universal MIBs/supplieslevel[{#IFDESCR}])/last(/Lexmark Universal MIBs/suppliescapacity[{#IFDESCR}])<=5'
+              recovery_mode: RECOVERY_EXPRESSION
+              recovery_expression: '100*last(/Lexmark Universal MIBs/supplieslevel[{#IFDESCR}])/last(/Lexmark Universal MIBs/suppliescapacity[{#IFDESCR}])>5'
+              name: 'Low Supplies:[{#IFDESCR}] - Nivel: {ITEM.LASTVALUE1}'
+              priority: INFO
+          graph_prototypes:
+            - uuid: 2b2cd68b8bde4d4ba7f37bf764d079c2
+              name: Supply
+              show_work_period: 'NO'
+              show_triggers: 'NO'
+              graph_items:
+                - color: 1A7C11
+                  calc_fnc: ALL
+                  item:
+                    host: 'Lexmark Universal MIBs'
+                    key: 'percentSupplies[{#IFDESCR}]'
+      valuemaps:
+        - uuid: 3941e8ede07a45e2b413823f150df62e
+          name: 'Printer Status'
+          mappings:
+            - value: '1'
+              newvalue: NoPaper
+            - value: '2'
+              newvalue: Unknown
+            - value: '3'
+              newvalue: OK
+            - value: '4'
+              newvalue: Printing
+            - value: '5'
+              newvalue: Warmup
+            - value: '6'
+              newvalue: Stopped
+            - value: '7'
+              newvalue: Offline
+            - value: '8'
+              newvalue: Error
+            - value: '9'
+              newvalue: Busy
+            - value: '10'
+              newvalue: Printing
+        - uuid: 2eb28b0caf864646ae767810c8436773
+          name: 'String Supplies'
+          mappings:
+            - value: '-3'
+              newvalue: '0'
+            - value: '-2'
+              newvalue: '0'
+            - value: '-1'
+              newvalue: '0'
+        - uuid: eca366e9e2ec4c328d149289ea1afef6
+          name: 'Supplies Level [Cyan Cartridge]'
+          mappings:
+            - value: '-3'
+              newvalue: '0'
